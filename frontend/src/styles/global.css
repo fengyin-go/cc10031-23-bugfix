@@ -59,8 +59,7 @@ body { margin: 0; background: #f6f8fb; color: #1f2937; }
 .timeline-bar.status-已完成 { background: #22c55e; }
 .timeline-bar.status-失败 { background: #ef4444; }
 .timeline-log { padding: 10px 14px; background: #1e293b; color: #e2e8f0; border-radius: 6px; font-family: monospace; font-size: 12px; max-height: 180px; overflow-y: auto; margin-top: 8px; }
-/* 分析看板 */
-.analysis-summary { display: flex; gap: 12px; flex-wrap: wrap; }
+/* 分析看板 */.analysis-summary { display: flex; gap: 12px; flex-wrap: wrap; }
 .analysis-card { flex: 1; min-width: 140px; background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
 .analysis-card .trend-up { color: #22c55e; }
 .analysis-card .trend-down { color: #ef4444; }
@@ -70,3 +69,18 @@ body { margin: 0; background: #f6f8fb; color: #1f2937; }
 .analysis-chart { display: flex; align-items: flex-end; gap: 8px; height: 160px; padding: 12px 0; }
 .analysis-bar { flex: 1; border-radius: 4px 4px 0 0; background: var(--brand); min-width: 24px; position: relative; transition: height 0.4s; }
 .analysis-bar span { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; color: var(--muted); white-space: nowrap; }
+
+/* 调度窗口 / 任务队列处理面板 */
+.panel { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin: 12px 0 16px; }
+.panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.panel-head h3 { margin: 0; font-size: 15px; }
+.panel-desc { color: var(--muted); font-size: 12px; margin: 4px 0 10px; }
+.panel-subtitle { font-size: 13px; margin: 16px 0 8px; }
+.panel .filter-bar { margin-bottom: 10px; }
+.panel .filter-item select { padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; }
+.stat-value.small { font-size: 13px; font-weight: 600; }
+.state-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; }
+.state-due { background: #e7f6ec; color: #0f7b3f; }
+.state-waiting { background: #f1f3f7; color: #55607a; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.dispatch-summary { background: #f5f8ff; border: 1px solid #d6e2ff; border-radius: 6px; padding: 8px 10px; font-size: 12px; color: #1f3a76; }

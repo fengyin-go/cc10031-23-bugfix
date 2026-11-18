@@ -71,8 +71,32 @@ npm run dev
 | 运行概览 | `report_dashboard` | 运行数据 | 统计日期、总执行数、成功数 |
 | 任务队列 | `task_queue` | 排队任务 | 任务编号、流程名称、提交时间 |
 
-## 约定
+## 调度到期与任务入队
 
+调度计划是否到期，由「调度时点」和「计划执行窗口」共同决定，判定逻辑集中在
+`backend/app/services/schedule_window.py`，调度器与任务队列共用同一条处理路径：
+
+- `cron表达式` 支持 5 段（分 时 日 月 周）与 6 段（秒 分 时 日 月 周）写法，
+  支持 `*` / `?` / 列表 / 范围 / 步长和 `@daily` 等别名；
+- `执行窗口` 支持每日时段（`09:00-11:00`）、时长（`45m` / `PT45M`）、
+  绝对区间（`2026-11-18 09:00-2026-11-18 11:00`）；留空时按 cron 后的一分钟补触发窗口；
+- 未到窗口或已过窗口的计划只出现在等待列表，不发布消息，也不生成排队任务；
+- 每个到期 cron 窗口生成唯一触发凭证（`PLAN-<id>-<UTC窗口>`），同一窗口重试
+  不会重复发布、也不会重复入队；
+- 历史计划时区与调度时区不一致时有两种显式分支，接口参数 `mode`：
+  `scheduler`（统一换算到调度时区，默认）或 `plan`（按计划冻结的 `时区` 逐条判断）。
+
+相关接口：
+
+| 接口 | 用途 |
+| --- | --- |
+| `GET /api/scheduler-windows` | 调度工作台按计划 / 时区 / 窗口查看到期结果（只读） |
+| `POST /api/pipeline/crawl-schedule` | 发布本次到期计划并让任务队列消费凭证 |
+| `GET /api/task-queue/scheduled-processing` | 任务队列处理项、结果清单与排队水位 |
+| `POST /api/task-queue/consume-scheduled` | 任务队列单独消费调度凭证（重试场景） |
+| `POST /api/scheduler/plan-timezone` | 为计划冻结时区，供 `plan` 分支使用 |
+
+## 约定
 - 全部模块共享`frontend/src/views/WorkbenchView.vue|tsx`和一套资源路由。
 - 每个模块仍保留独立`backend/app/services/<模块>.py`；纯前端保留
   `frontend/src/domain/<模块>.ts`，用于承载真实业务差异并维持36题位容量。

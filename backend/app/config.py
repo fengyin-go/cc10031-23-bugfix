@@ -17,6 +17,11 @@ class Settings:
     )
     page_size_default: int = 20
     page_size_max: int = 200
+    # 调度时区：cron 与执行窗口默认按这个时区解释。
+    scheduler_timezone: str = "Asia/Shanghai"
+    # 历史计划时区的处理分支：scheduler = 统一换算到调度时区；
+    # plan = 按计划冻结时区逐条判断。
+    schedule_window_mode: str = "scheduler"
 
 
 settings = Settings()

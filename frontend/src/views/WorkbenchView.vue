@@ -15,6 +15,8 @@
       </div>
     </header>
 
+    <SchedulerWindowPanel v-if="meta.key === 'scheduler'" />
+
     <div class="stat-row">
       <article v-for="item in stats" :key="item.label" class="stat-card">
         <span class="stat-label">{{ item.label }}</span>
@@ -70,6 +72,8 @@
       </tbody>
     </table>
 
+    <ScheduledProcessingPanel v-if="meta.key === 'task_queue'" />
+
     <div v-if="showCreate" class="modal-backdrop" data-testid="create-modal">
       <form class="modal" @submit.prevent="submitCreate">
         <h3>登记{{ meta.entity }}</h3>
@@ -104,6 +108,8 @@ import {
   runAction as applyAction,
 } from '@/api/backend-service'
 import type { EntryRow } from '@/data/types'
+import SchedulerWindowPanel from './SchedulerWindowPanel.vue'
+import ScheduledProcessingPanel from './ScheduledProcessingPanel.vue'
 
 const props = defineProps<{ moduleKey: string }>()
 const meta = moduleMeta(props.moduleKey)

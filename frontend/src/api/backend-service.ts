@@ -1,6 +1,14 @@
 import { request } from './client'
 import { moduleMeta } from '@/data/modules'
-import type { ActionResult, EntryRow, OverviewResult, PageResult } from '@/data/types'
+import type {
+  ActionResult,
+  CrawlScheduleResult,
+  EntryRow,
+  OverviewResult,
+  PageResult,
+  ScheduledProcessingSnapshot,
+  SchedulerWindowResult,
+} from '@/data/types'
 
 export { moduleMeta }
 
@@ -105,4 +113,42 @@ export async function loadRecoveryStats(): Promise<Record<string, unknown>> {
   const response = await request('/api/recovery')
   if (!response.ok) throw new Error('恢复状态查询失败')
   return await response.json()
+}
+
+/** 调度工作台：按计划、时区、窗口查看本次到期结果 */
+export async function loadSchedulerWindows(
+  params: Record<string, string> = {},
+): Promise<SchedulerWindowResult> {
+  const query = new URLSearchParams(params).toString()
+  const response = await request(`/api/scheduler-windows${query ? `?${query}` : ''}`)
+  if (!response.ok) throw new Error('调度窗口读取失败')
+  return await response.json()
+}
+
+/** 调度工作台：触发一次到期计划发布，并让任务队列消费凭证 */
+export async function runCrawlSchedule(
+  params: Record<string, string> = {},
+): Promise<CrawlScheduleResult> {
+  const query = new URLSearchParams(params).toString()
+  const response = await request(
+    `/api/pipeline/crawl-schedule${query ? `?${query}` : ''}`,
+    { method: 'POST' },
+  )
+  if (!response.ok) throw new Error('调度触发失败')
+  return await response.json()
+}
+
+/** 任务队列工作台：处理项、结果清单与计划排队水位 */
+export async function loadScheduledProcessing(): Promise<ScheduledProcessingSnapshot> {
+  const response = await request('/api/task-queue/scheduled-processing')
+  if (!response.ok) throw new Error('处理清单读取失败')
+  return await response.json()
+}
+
+/** 组合其他模块的待办同步：这里只读，不改其他模块状态 */
+export async function refreshWorkbench(
+  key: string,
+  filters: Record<string, string> = {},
+): Promise<PageResult> {
+  return listEntries(key, filters)
 }

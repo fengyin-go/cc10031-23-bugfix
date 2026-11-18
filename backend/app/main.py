@@ -5,13 +5,15 @@
 """
 from __future__ import annotations
 
-from fastapi import FastAPI, Query
+from fastapi import Body, FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.routers import ROUTERS
 from app.store import store
 from app.services import runtime_session, callback_hook
+from app.services.scheduler import SchedulerService
+from app.services.task_queue import TaskQueueService
 
 app = FastAPI(title="RPA流程自动化中心", version="1.0.0")
 
@@ -213,12 +215,87 @@ def pipeline_rpa_lifecycle() -> dict[str, object]:
 
 
 @app.post("/api/pipeline/crawl-schedule")
-def pipeline_crawl_schedule() -> dict[str, object]:
-    """触发调度采集流程。"""
-    from app.services import SchedulerService
+def pipeline_crawl_schedule(
+    at: str | None = Query(default=None, description="调度时点，缺省取当前时间"),
+    timezone_name: str | None = Query(
+        default=None, alias="timezone", description="调度时区，缺省取配置"),
+    mode: str | None = Query(
+        default=None, description="时区处理分支：scheduler 统一换算 / plan 按计划冻结时区"),
+    consume: bool = Query(default=True, description="是否同时让任务队列消费到期凭证"),
+) -> dict[str, object]:
+    """触发调度采集流程：只发布当前窗口真正到期的计划，并由任务队列落任务。
+
+    同一窗口重复调用不会重复排队；未到窗口的计划只出现在 waiting 中。
+    """
     sched_svc = SchedulerService()
-    result = sched_svc.schedule_crawl_jobs()
-    return {"ok": True, "scheduled": result}
+    result = sched_svc.schedule_crawl_jobs(
+        at=at, timezone_name=timezone_name, mode=mode)
+
+    queue_result: dict[str, object] | None = None
+    if consume and result["triggered"] > 0:
+        queue_svc = TaskQueueService()
+        queue_result = queue_svc.consume_scheduled_crawl_jobs(
+            at=at, timezone_name=timezone_name, mode=mode)
+
+    return {"ok": True, "scheduled": result, "queue": queue_result}
+
+
+@app.get("/api/scheduler-windows")
+def scheduler_windows(
+    at: str | None = Query(default=None, description="调度时点，缺省取当前时间"),
+    timezone_name: str | None = Query(default=None, alias="timezone"),
+    mode: str | None = Query(default=None, description="scheduler / plan"),
+    plan: str | None = Query(default=None, description="按计划 ID 或名称过滤"),
+    plan_timezone: str | None = Query(default=None, description="按计划时区过滤"),
+    window: str | None = Query(default=None, description="按窗口或到期状态过滤"),
+    include_inactive: bool = Query(default=False),
+) -> dict[str, object]:
+    """调度工作台：按计划、时区、窗口查看本次到期结果。
+
+    只读判定，不推进水位、不生成任务；未到期计划保持等待状态。
+    """
+    sched_svc = SchedulerService()
+    return sched_svc.preview_due_plans(
+        at=at,
+        timezone_name=timezone_name,
+        mode=mode,
+        plan=plan,
+        plan_timezone=plan_timezone,
+        window=window,
+        include_inactive=include_inactive,
+    )
+
+
+@app.get("/api/task-queue/scheduled-processing")
+def scheduled_processing() -> dict[str, object]:
+    """任务队列工作台：处理项、结果清单与计划排队水位。"""
+    return TaskQueueService().processing_snapshot()
+
+
+@app.post("/api/task-queue/consume-scheduled")
+def consume_scheduled(
+    at: str | None = Query(default=None),
+    timezone_name: str | None = Query(default=None, alias="timezone"),
+    mode: str | None = Query(default=None),
+) -> dict[str, object]:
+    """任务队列单独消费调度凭证（用于重试场景）。"""
+    queue_svc = TaskQueueService()
+    result = queue_svc.consume_scheduled_crawl_jobs(
+        at=at, timezone_name=timezone_name, mode=mode)
+    return {"ok": True, "result": result}
+
+
+@app.post("/api/scheduler/plan-timezone")
+def set_plan_timezone(payload: dict = Body(...)) -> dict[str, object]:
+    """为计划冻结时区，供“按计划冻结时区逐条判断”分支使用。"""
+    plan_id = payload.get("plan_id")
+    timezone_name = payload.get("timezone")
+    if plan_id is None or not timezone_name:
+        return {"ok": False, "message": "需要 plan_id 与 timezone"}
+    result = SchedulerService().set_plan_timezone(int(plan_id), str(timezone_name))
+    if result is None:
+        return {"ok": False, "message": f"采集计划 {plan_id} 不存在"}
+    return {"ok": True, "message": "计划时区已冻结", "entry": result}
 
 
 @app.post("/api/pipeline/element-execution")
